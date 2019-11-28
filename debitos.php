@@ -2,7 +2,7 @@
 /*
  * debitos.php
  * 
- * Copyright 2019 Juanmanuel <jmdedio@gmail.com>
+ * Copyright 2019 Juan Manuel Dedionigis <jmdedio@gmail.com>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,50 +29,70 @@
  * 2- indicar en el mismo (array,lista,pila,etc) si la cobranza es "cobrado" o "rechazado" 
  * 3- Dado el caso de que sea rechazo se quiere ver el importe como $0
  */
-function rend_cobranzas($file)
+class CobranzasClass
 {
-    $array = file($file) or die("No se pudo leer el fichero: ".$file);
+    public function __construct()
+    {
+        // Lista de débito
+        $this->debitos = array();
 
-    $debitos = array();
-    $debito = array(
-        'cbu'     => '',
-        'fecha'   => '',
-        'estado'  => '',
-        'importe' => 0
-    );
+        // Obejto débito
+        $this->debito = array(
+            'cbu'     => '',
+            'fecha'   => '',
+            'estado'  => '',
+            'importe' => 0
+        );
 
-    // Códigos de rechazo
-    $rechazos = array(
-        'R02', 'R03', 'R04','R05', 'R06','R07', 'R08',   
-        'R10', 'R13', 'R14','R15', 'R17','R19', 'R20',   
-        'R23', 'R24', 'R25','R26', 'R28','R29', 'R75',   
-        'R81', 'R87', 'R89','R91', 'R95'
-    );
+        // Códigos de rechazo
+        $this->rechazos = array(
+            'R02', 'R03', 'R04','R05', 'R06','R07', 'R08',   
+            'R10', 'R13', 'R14','R15', 'R17','R19', 'R20',   
+            'R23', 'R24', 'R25','R26', 'R28','R29', 'R75',   
+            'R81', 'R87', 'R89','R91', 'R95'
+        );
 
-    /* Bucle principal
-     * Recorre todo el fichero, línea por linea para armar el array.
-     * Punto 1
-     */
-    foreach($array as $a){
-        // Condicional para seleccionar sólo los registros de débitos
-        if(
-            strpos(substr($a, 0, 26), 'BANCO') === False
-            && strlen($a) > 3
-        ){
-            $debito['cbu'] = substr($a, 4, 22);
-            $debito['fecha'] = substr($a, 294, 8); // Fecha de cobro
-            $debito['estado'] = substr($a, 134, 3);
-            // Condicional para determinar el estado del débito
-            // Puntos 2 y 3
-            if(array_search($debito['estado'], $rechazos) === False){
-                $debito['estado'] = 'cobrado';
-                $debito['importe'] = number_format(substr_replace(substr($a, 302, 14), '.', -2, 0), 2);
-            } else{
-                $debito['estado'] = 'rechazado '.$debito['estado'];
-            }
-            array_push($debitos, $debito);
-        }
+        // Registros de débitos
+        $this->registros = array();
     }
-    return $debitos;
+
+    public function __destruct(){}
+
+    // Extrae los registros del fichero y los almacena en $this->registros
+    function extrae_registros($file)
+    {
+        $this->registros = file($file) or die("No se pudo leer el fichero: ".$file);
+        return $this->registros;
+    }
+
+    function rend_cobranzas()
+    {
+        /* Bucle principal
+         * Recorre todo el fichero, línea por linea para armar el array.
+         * Punto 1
+         */
+        foreach($this->registros as $registro){
+            // Condicional para seleccionar sólo los registros de débitos
+            if(
+                strpos(substr($registro, 0, 26), 'BANCO') === False
+                && strlen($registro) > 3
+            ){
+                $this->debito['cbu'] = substr($registro, 0, 24);
+                $this->debito['fecha'] = strtotime(substr($registro, 294, 8)); // Fecha de cobro
+                $this->debito['estado'] = substr($registro, 134, 3);
+                // Condicional para determinar el estado del débito
+                // Puntos 2 y 3
+                if(array_search($this->debito['estado'], $this->rechazos) === False){
+                    $this->debito['estado'] = 'cobrado';
+                    $this->debito['importe'] = number_format(substr_replace(substr($registro, 302, 14), '.', -2, 0), 2);
+                } else{
+                    $this->debito['estado'] = 'rechazado '.$this->debito['estado'];
+                }
+                array_push($this->debitos, $this->debito);
+            }
+        }
+        return $this->debitos;
+    }
 }
+
 ?>
